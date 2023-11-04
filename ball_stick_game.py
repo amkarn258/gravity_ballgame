@@ -1,5 +1,5 @@
 import pygame
-import math
+import math, random
 import numpy as np
 
 pygame.init()
@@ -48,24 +48,27 @@ def draw_trees():
         pygame.draw.polygon(screen, tree_foliage_color, [(x - width // 2, y - height), (x + width // 2, y - height), (x, y - height - foliage_height)])
 
 
-def get_gravity():
+def get_inputs():
     try:
+        speed = float(input("Enter initial speed in m/s: "))
+        theta = float(input("Enter initial angle in radians: "))
         gravity = float(input("Enter the gravity value (m/s^2): "))
-        return gravity
+        return speed, theta, gravity
     except ValueError:
         print("Invalid input. Please enter a valid numerical value.")
-        return get_gravity()
+        return get_inputs()
 
 def main():
     # Initialize game variables
     swing_speed = 100
     swing_angle = np.pi / 4
-    ball = Ball(50, 50, swing_speed, swing_angle)
+    ball = Ball(50, 50)
     stick = Stick()
+    coins = [Coin() for _ in range(5)]
     # GRAVITY = get_gravity()
      # Create a clock object
     time_passed = 0.0  # Initialize time
-
+    score = 0
     running = True
     while running:
         for event in pygame.event.get():
@@ -91,18 +94,25 @@ def main():
         ball.draw()
         stick.draw()
         draw_trees()
+        for coin in coins:
+            if ball_collision_with_coin(ball, coin):
+                coins.remove(coin)
+                score += 1
+            coin.draw()
+            
+        draw_score(score)
         pygame.display.update()
 
     pygame.quit()
 
 class Ball:
-    def __init__(self, x, y, speed, theta):
+    def __init__(self, x, y):
         self.x = x
         self.y = y
         self.x_0 = x
         self.y_0 = y
-        self.speed = speed  # Initial speed of the ball
-        self.theta = math.radians(theta)  # Initial angle of launch in radians
+        self.speed, self.theta, self.gravity = get_inputs()  # Initial speed of the ball
+        # self.theta = math.radians(theta)  # Initial angle of launch in radians
         self.velocity_x_0 = self.speed * math.cos(self.theta)  # Initial velocity in the x-direction
         self.velocity_y_0 = self.speed * math.sin(self.theta)  # Initial velocity in the y-direction
         self.velocity_y = self.velocity_y_0
@@ -111,7 +121,7 @@ class Ball:
         self.time = 0.0  # Time elapsed for this ball
         self.time_of_collison_y = 0.0
         self.time_of_collison_x = 0.0
-        self.gravity = get_gravity()
+        # self.gravity = get_gravity()
         
     def update(self, time_passed):
         # Update ball position and velocity based on physics
@@ -154,8 +164,19 @@ class Ball:
             else:
                 self.velocity_x = min(0, self.velocity_x + FRICTION * dt)
     def draw(self):
-        print(f"speed x = {self.velocity_x}, dt = {dt}")
         pygame.draw.circle(screen, (0, 0, 255), (int(self.x), int(self.y)), self.radius)
+
+
+class Coin:
+    def __init__(self):
+        self.x = random.randint(50, SCREEN_WIDTH - 50)  # Random x-coordinate within game boundaries
+        self.y = random.randint(50, SCREEN_HEIGHT - 50)  # Random y-coordinate within game boundaries
+        self.radius = 10
+
+    def draw(self):
+        pygame.draw.circle(screen, (255, 255, 0), (int(self.x), int(self.y)), self.radius)
+
+
 
 class Stick:
     def __init__(self):
@@ -188,6 +209,23 @@ class Stick:
 
     def draw(self):
         pygame.draw.line(screen, (0, 0, 0), (0, 0), (int(self.tip_x), int(self.tip_y)), 5)
+
+
+def draw_score(score):
+    font = pygame.font.Font(None, 36)
+    score_text = font.render(f"Coins: {score}", True, (255, 255, 255))
+    screen.blit(score_text, (SCREEN_WIDTH - 150, 10))
+
+def ball_collision_with_coin(ball, coin):
+    # Calculate the distance between the ball and the coin using the Pythagorean theorem
+    distance = math.sqrt((ball.x - coin.x) ** 2 + (ball.y - coin.y) ** 2)
+    
+    # Check if the distance is less than the sum of the radii of the ball and the coin
+    if distance < ball.radius + coin.radius:
+        return True  # Collision occurred
+    else:
+        return False  # No collision
+
 
 def handle_collisions(ball, stick):
     # Check if the ball has collided with the ground
